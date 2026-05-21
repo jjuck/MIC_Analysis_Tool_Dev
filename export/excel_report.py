@@ -28,17 +28,20 @@ class ExcelReportBuilder:
         self._channel_statistics = analysis_report.channel_statistics_by_name()
         self._workbook = None
 
-        self._base_blue = {'bold': True, 'bg_color': '#DEEAF6', 'align': 'center', 'valign': 'vcenter', 'border': 1}
-        self._base_green = {'bold': True, 'bg_color': '#E2EFDA', 'align': 'center', 'valign': 'vcenter', 'border': 1}
-        self._base_thin = {'align': 'center', 'valign': 'vcenter', 'border': 1}
-        self._base_thin_num = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.000'}
-        self._base_thin_int = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0'}
-        self._base_thin_qty = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0" EA"'}
-        self._base_thin_pct = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.0%'}
-        self._base_yld_val = {'bold': True, 'font_size': 18, 'font_color': '#2E7D32', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.0%'}
-        self._base_red_thin = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_color': 'red', 'bold': True}
-        self._base_red_thin_num = {'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_color': 'red', 'bold': True, 'num_format': '0.000'}
-        self._base_sn_box = {'bold': True, 'bg_color': '#F2F2F2', 'top': 1, 'bottom': 1, 'align': 'left', 'valign': 'vcenter'}
+        font_name = 'Malgun Gothic'
+
+        self._base_blue = {'font_name': font_name, 'bold': True, 'bg_color': '#DEEAF6', 'align': 'center', 'valign': 'vcenter', 'border': 1}
+        self._base_green = {'font_name': font_name, 'bold': True, 'bg_color': '#E2EFDA', 'align': 'center', 'valign': 'vcenter', 'border': 1}
+        self._base_thin = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1}
+        self._base_thin_num = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.000'}
+        self._base_thin_int = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0'}
+        self._base_thin_qty = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0" EA"'}
+        self._base_thin_pct = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.0%'}
+        self._base_yld_val = {'font_name': font_name, 'bold': True, 'font_size': 18, 'font_color': '#2E7D32', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '0.0%'}
+        self._base_red_thin = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_color': 'red', 'bold': True}
+        self._base_red_thin_num = {'font_name': font_name, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_color': 'red', 'bold': True, 'num_format': '0.000'}
+        self._base_sn_box = {'font_name': font_name, 'bold': True, 'bg_color': '#F2F2F2', 'top': 1, 'bottom': 1, 'align': 'left', 'valign': 'vcenter'}
+        self._base_note = {'font_name': font_name, 'font_size': 9, 'italic': True, 'font_color': '#666666', 'align': 'left', 'valign': 'vcenter'}
 
     def build(self):
         output = io.BytesIO()
@@ -80,6 +83,7 @@ class ExcelReportBuilder:
 
     def _write_report_sheets(self):
         ws1 = self._workbook.add_worksheet('📈 분석 리포트')
+        self._configure_worksheet(ws1)
         self._write_dashboard(ws1, 86, is_sheet1=True)
         fig_fr = self._create_fr_plot(self._report, self._show_normal, self._selected_indices, for_excel=True)
         buf_f = io.BytesIO()
@@ -102,6 +106,7 @@ class ExcelReportBuilder:
                 c_r = self._write_failure_unit(ws1, c_r, 8, idx, 86)
 
         ws2 = self._workbook.add_worksheet('🔍 결함상세')
+        self._configure_worksheet(ws2)
         num_p = (len(self._selected_indices) + 1) // 2
         l_f_ws2 = max(23, 15 + (num_p * 8))
         self._write_dashboard(ws2, l_f_ws2)
@@ -114,15 +119,45 @@ class ExcelReportBuilder:
             else:
                 cr2 = self._write_failure_unit(ws2, cr2, 8, idx, l_f_ws2)
 
+        ws3 = self._workbook.add_worksheet('📊 통계요약')
+        self._configure_worksheet(ws3)
+        self._write_extended_statistics_sheet(ws3)
+
+    def _configure_worksheet(self, ws):
+        ws.hide_gridlines(2)
+        ws.set_zoom(90)
+
     def _write_dashboard(self, ws, last_row_idx=37, is_sheet1=False):
+        self._configure_dashboard_columns(ws)
+        self._write_dashboard_summary_blocks(ws)
+
+        for r_f in range(6, last_row_idx - 1):
+            if is_sheet1 and r_f == 36:
+                for c in range(1, 14):
+                    ws.write_blank(r_f, c, "", self._get_fmt({'border': 0}, bottom=2, left=2 if c == 1 else None, right=2 if c == 13 else None))
+                continue
+            ws.write_blank(r_f, 1, "", self._get_fmt({'border': 0}, left=2))
+            ws.write_blank(r_f, 13, "", self._get_fmt({'border': 0}, right=2))
+
+        ws.write_blank(last_row_idx - 1, 1, "", self._get_fmt({'border': 0}, left=2, bottom=2))
+        for c_b in range(2, 13):
+            ws.write_blank(last_row_idx - 1, c_b, "", self._get_fmt({'border': 0}, bottom=2))
+        ws.write_blank(last_row_idx - 1, 13, "", self._get_fmt({'border': 0}, right=2, bottom=2))
+
+    def _configure_dashboard_columns(self, ws):
         ws.set_column('A:A', 3)
         ws.set_column('B:B', 15)
         ws.set_column('C:C', 22)
         ws.set_column('D:F', 10)
         ws.set_column('G:N', 11)
+        ws.set_column('F:F', 11.5)
+        ws.set_column('G:G', 12)
+        ws.set_column('M:M', 11.5)
+        ws.set_column('N:N', 12)
 
+    def _write_dashboard_summary_blocks(self, ws):
         ws.merge_range('B2:F2', '📝 PRODUCTION SUMMARY', self._get_fmt(self._base_blue, top=2, left=2, bottom=1, right=1))
-        ws.merge_range('G2:N2', '📈 CHANNEL STATISTICS', self._get_fmt(self._base_green, top=2, right=2, bottom=1, left=0))
+        ws.merge_range('G2:N2', '📈 CHANNEL STATISTICS (1kHz)', self._get_fmt(self._base_green, top=2, right=2, bottom=1, left=0))
 
         sums = [
             ("Model Type", self._report.product_spec.model_name),
@@ -171,19 +206,6 @@ class ExcelReportBuilder:
                 for c in range(6, 14):
                     ws.write_blank(r, c, "", self._get_fmt({'border': 0}, right=2 if c == 13 else 0, bottom=2 if is_l else 0, left=0 if c == 6 else 0))
 
-        for r_f in range(6, last_row_idx - 1):
-            if is_sheet1 and r_f == 36:
-                for c in range(1, 14):
-                    ws.write_blank(r_f, c, "", self._get_fmt({'border': 0}, bottom=2, left=2 if c == 1 else None, right=2 if c == 13 else None))
-                continue
-            ws.write_blank(r_f, 1, "", self._get_fmt({'border': 0}, left=2))
-            ws.write_blank(r_f, 13, "", self._get_fmt({'border': 0}, right=2))
-
-        ws.write_blank(last_row_idx - 1, 1, "", self._get_fmt({'border': 0}, left=2, bottom=2))
-        for c_b in range(2, 13):
-            ws.write_blank(last_row_idx - 1, c_b, "", self._get_fmt({'border': 0}, bottom=2))
-        ws.write_blank(last_row_idx - 1, 13, "", self._get_fmt({'border': 0}, right=2, bottom=2))
-
     def _write_summary_section(self, ws, start_row, is_sheet1=False):
         top_l = 2 if is_sheet1 else 1
         ws.merge_range(start_row, 1, start_row, 6, '⚠️ 공정 관리 한계', self._get_fmt(self._base_blue, left=2, top=top_l))
@@ -202,7 +224,7 @@ class ExcelReportBuilder:
             for c_idx, val in enumerate(row_data[2:]):
                 ws.write(r, 3 + c_idx, val, self._get_fmt(self._base_thin))
 
-        ws.merge_range(start_row, 8, start_row, 13, '📊 불량 유형 Summary', self._get_fmt(self._base_green, right=2, top=top_l))
+        ws.merge_range(start_row, 8, start_row, 13, '📊 불량 유형 Summary (샘플 기준)', self._get_fmt(self._base_green, right=2, top=top_l))
         ws.merge_range(start_row + 1, 8, start_row + 1, 9, "Defect Type", self._get_fmt(self._base_green))
         ws.merge_range(start_row + 1, 10, start_row + 1, 11, "Quantity", self._get_fmt(self._base_green))
         ws.merge_range(start_row + 1, 12, start_row + 1, 13, "Rate (%)", self._get_fmt(self._base_green, right=2))
@@ -216,9 +238,188 @@ class ExcelReportBuilder:
             ws.merge_range(r, 12, r, 13, rate / 100, self._get_fmt(self._base_thin_pct, right=2))
 
         total_rate = self._report.defect_summary.total_rate(self._report.total_qty)
-        ws.merge_range(start_row + 6, 8, start_row + 6, 9, "Total", self._get_fmt(self._base_green))
+        ws.merge_range(start_row + 6, 8, start_row + 6, 9, "Total Failure", self._get_fmt(self._base_green))
         ws.merge_range(start_row + 6, 10, start_row + 6, 11, self._report.defect_summary.total_failure_samples, self._get_fmt(self._base_thin_int))
         ws.merge_range(start_row + 6, 12, start_row + 6, 13, total_rate / 100, self._get_fmt(self._base_thin_pct, right=2))
+
+        ws.merge_range(
+            start_row + 7,
+            8,
+            start_row + 7,
+            13,
+            '※ 샘플 기준 집계 / 우선순위: Curved Out > No Signal > Margin Out > Nan',
+            self._get_fmt(self._base_note, right=2),
+        )
+
+    def _write_extended_statistics_sheet(self, ws):
+        self._configure_dashboard_columns(ws)
+        self._write_dashboard_summary_blocks(ws)
+        self._write_outer_frame_gap_rows(ws, 6, 7)
+
+        row = 8
+        row = self._write_extended_defect_summary(ws, row)
+        self._write_outer_frame_gap_rows(ws, row + 1, row + 1)
+        row += 2
+        has_digital_channels = any(channel.mic_type == 'digital' for channel in self._report.product_spec.channels)
+        left_table_last_row = self._write_frequency_statistics_table(
+            ws,
+            row,
+            '200Hz 통계',
+            '200Hz',
+            start_col=1,
+            outer_bottom=not has_digital_channels,
+        )
+        right_table_last_row = self._write_frequency_statistics_table(
+            ws,
+            row,
+            '4kHz 통계',
+            '4kHz',
+            start_col=8,
+            outer_bottom=not has_digital_channels,
+        )
+        row = max(left_table_last_row, right_table_last_row) + 2
+
+        if has_digital_channels:
+            self._write_outer_frame_gap_rows(ws, row - 1, row - 1)
+            self._write_digital_mic_statistics_table(ws, row, outer_bottom=True)
+
+    def _write_outer_frame_gap_rows(self, ws, start_row, end_row):
+        for row in range(start_row, end_row + 1):
+            ws.write_blank(row, 1, '', self._get_fmt({'border': 0}, left=2))
+            ws.write_blank(row, 13, '', self._get_fmt({'border': 0}, right=2))
+
+    def _write_extended_defect_summary(self, ws, start_row):
+        ws.merge_range(start_row, 1, start_row, 13, '📊 불량 유형 Summary (샘플 기준)', self._get_fmt(self._base_green, left=2, right=2, top=2, bottom=1))
+        ws.merge_range(start_row + 1, 1, start_row + 1, 5, 'Defect Type', self._get_fmt(self._base_green, left=2, right=1, bottom=1))
+        ws.merge_range(start_row + 1, 6, start_row + 1, 8, 'Quantity', self._get_fmt(self._base_green, left=1, right=1, bottom=1))
+        ws.merge_range(start_row + 1, 9, start_row + 1, 13, 'Rate (%)', self._get_fmt(self._base_green, left=1, right=2, bottom=1))
+
+        current_row = start_row + 2
+        for defect_type in self._limit_policy.defect_types:
+            qty = self._report.defect_summary.counts[defect_type]
+            rate = self._report.defect_summary.rate_for(defect_type, self._report.total_qty) / 100
+            ws.merge_range(current_row, 1, current_row, 5, defect_type, self._get_fmt(self._base_thin, left=2, right=1))
+            ws.merge_range(current_row, 6, current_row, 8, float(qty), self._get_fmt(self._base_thin_int, left=1, right=1))
+            ws.merge_range(current_row, 9, current_row, 13, rate, self._get_fmt(self._base_thin_pct, left=1, right=2))
+            current_row += 1
+
+        total_rate = self._report.defect_summary.total_rate(self._report.total_qty) / 100
+        ws.merge_range(current_row, 1, current_row, 5, 'Total Failure', self._get_fmt(self._base_green, left=2, right=1))
+        ws.merge_range(current_row, 6, current_row, 8, float(self._report.defect_summary.total_failure_samples), self._get_fmt(self._base_thin_int, left=1, right=1))
+        ws.merge_range(current_row, 9, current_row, 13, total_rate, self._get_fmt(self._base_thin_pct, left=1, right=2))
+        ws.merge_range(
+            current_row + 1,
+            1,
+            current_row + 1,
+            13,
+            '※ 샘플 기준 집계 / 우선순위: Curved Out > No Signal > Margin Out > Nan',
+            self._get_fmt(self._base_note, left=2, right=2),
+        )
+        return current_row + 1
+
+    def _write_frequency_statistics_table(self, ws, start_row, title, freq_label, start_col=1, outer_bottom=False):
+        end_col = start_col + 5
+        ws.merge_range(start_row, start_col, start_row, end_col, title, self._get_fmt(self._base_blue, left=2 if start_col == 1 else 1, right=2, top=2, bottom=1))
+        headers = ['MIC', 'Yield', 'Min', 'Max', 'Avg', 'Stdev']
+        for offset, header in enumerate(headers):
+            col = start_col + offset
+            ws.write(start_row + 1, col, header, self._get_fmt(self._base_blue, left=2 if col == start_col and start_col == 1 else 1, right=2 if col == end_col else 1, bottom=1))
+
+        current_row = start_row + 2
+        statistics_items = tuple(self._channel_statistics.items())
+        last_data_row = start_row + 1 if not statistics_items else start_row + 1 + len(statistics_items)
+        for offset, (mic_name, stat) in enumerate(statistics_items):
+            is_last_data_row = outer_bottom and offset == len(statistics_items) - 1
+            value_min, value_max, value_avg, value_std, yield_rate = stat.summary_metrics(self._report.stats_indices, self._report.total_qty, label=freq_label)
+            bottom = 2 if is_last_data_row else None
+            ws.write(current_row, start_col, mic_name, self._get_fmt(self._base_thin, left=2 if start_col == 1 else 1, right=1, bottom=bottom))
+            ws.write_number(current_row, start_col + 1, float(yield_rate), self._get_fmt(self._base_thin_pct, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, start_col + 2, float(value_min), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, start_col + 3, float(value_max), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, start_col + 4, float(value_avg), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, start_col + 5, float(value_std), self._get_fmt(self._base_thin_num, left=1, right=2, bottom=bottom))
+            current_row += 1
+
+        if outer_bottom:
+            ws.write_blank(last_data_row, 7, '', self._get_fmt({'border': 0}, bottom=2))
+
+        return current_row - 1
+
+    def _write_digital_mic_statistics_table(self, ws, start_row, outer_bottom=False):
+        ws.merge_range(start_row, 1, start_row, 13, 'Digital MIC 통합 통계', self._get_fmt(self._base_blue, left=2, right=2, top=2, bottom=1))
+        header_ranges = [
+            ('Group', 1, 3),
+            ('Freq.', 4, 5),
+            ('Yield', 6, 7),
+            ('Min', 8, 9),
+            ('Max', 10, 11),
+            ('Avg', 12, 12),
+            ('Stdev', 13, 13),
+        ]
+        for header, first_col, last_col in header_ranges:
+            header_fmt = self._get_fmt(self._base_blue, left=2 if first_col == 1 else 1, right=2 if last_col == 13 else 1, bottom=1)
+            if first_col == last_col:
+                ws.write(start_row + 1, first_col, header, header_fmt)
+            else:
+                ws.merge_range(start_row + 1, first_col, start_row + 1, last_col, header, header_fmt)
+
+        current_row = start_row + 2
+        statistics_rows = self._digital_mic_statistics_rows()
+        for offset, (freq_label, yield_rate, value_min, value_max, value_avg, value_std) in enumerate(statistics_rows):
+            is_last_data_row = outer_bottom and offset == len(statistics_rows) - 1
+            bottom = 2 if is_last_data_row else None
+            ws.merge_range(current_row, 1, current_row, 3, 'Digital MIC Total', self._get_fmt(self._base_thin, left=2, right=1, bottom=bottom))
+            ws.merge_range(current_row, 4, current_row, 5, freq_label, self._get_fmt(self._base_thin, left=1, right=1, bottom=bottom))
+            ws.merge_range(current_row, 6, current_row, 7, float(yield_rate), self._get_fmt(self._base_thin_pct, left=1, right=1, bottom=bottom))
+            ws.merge_range(current_row, 8, current_row, 9, float(value_min), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.merge_range(current_row, 10, current_row, 11, float(value_max), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, 12, float(value_avg), self._get_fmt(self._base_thin_num, left=1, right=1, bottom=bottom))
+            ws.write_number(current_row, 13, float(value_std), self._get_fmt(self._base_thin_num, left=1, right=2, bottom=bottom))
+            current_row += 1
+
+    def _digital_mic_statistics_rows(self):
+        digital_channels = tuple(channel for channel in self._report.product_spec.channels if channel.mic_type == 'digital')
+        if not digital_channels:
+            return tuple()
+
+        digital_names = {channel.name for channel in digital_channels}
+        digital_yield = (
+            sum(
+                all(channel.status == 'Normal' for channel in sample.channels if channel.mic_name in digital_names)
+                for sample in self._report.samples
+            ) / self._report.total_qty
+        ) if self._report.total_qty > 0 else 0.0
+
+        rows = []
+        for freq_label in ('200Hz', '1kHz', '4kHz'):
+            combined_values: list[float] = []
+            for sample_index in self._report.stats_indices:
+                sample = self._report.sample_by_index(sample_index)
+                sample_values: list[float] = []
+                for channel in sample.channels:
+                    if channel.mic_name not in digital_names:
+                        continue
+                    point = channel.point(freq_label)
+                    try:
+                        sample_values.append(float(point.display_value))
+                    except ValueError:
+                        continue
+
+                if sample_values:
+                    combined_values.append(float(np.mean(sample_values)))
+
+            if combined_values:
+                combined_array = np.array(combined_values)
+                value_min = float(combined_array.min())
+                value_max = float(combined_array.max())
+                value_avg = float(combined_array.mean())
+                value_std = float(combined_array.std())
+            else:
+                value_min = value_max = value_avg = value_std = 0.0
+
+            rows.append((freq_label, digital_yield, value_min, value_max, value_avg, value_std))
+
+        return tuple(rows)
 
     def _write_failure_unit(self, ws, r_start, c_base, idx, total_last_row):
         sample = self._report.sample_by_index(idx)

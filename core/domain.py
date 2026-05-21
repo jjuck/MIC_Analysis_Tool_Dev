@@ -13,9 +13,13 @@ class ProductDetection:
     model_name: str | None
     prod_date: str
     detected_pn: str
+    has_limit_row_mismatch: bool = False
 
     @property
     def report_date_code(self) -> str:
+        normalized_prod_date = self.prod_date.strip().upper()
+        if normalized_prod_date == "MULTI" or "," in self.prod_date or "~" in self.prod_date:
+            return "multi"
         digits = "".join(ch for ch in self.prod_date if ch.isdigit())
         if len(digits) >= 8:
             return digits[2:8]
@@ -24,6 +28,8 @@ class ProductDetection:
     @property
     def report_pn_code(self) -> str:
         cleaned = self.detected_pn.strip()
+        if cleaned.upper() == "MULTI":
+            return "multi"
         if len(cleaned) >= 5:
             return cleaned[-5:]
         return cleaned or "unknown"
@@ -40,6 +46,11 @@ class UploadedLog:
     limit_low: pd.Series
     limit_high: pd.Series
     test_data: pd.DataFrame
+    source_file_names: tuple[str, ...] = ()
+
+    @property
+    def upload_count(self) -> int:
+        return max(1, len(self.source_file_names))
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,22 +103,42 @@ class ChannelStatistics:
     pass_count: int = 0
     fail_count: int = 0
     values_by_label: dict[str, list[float]] = field(default_factory=lambda: {"200Hz": [], "1kHz": [], "4kHz": []})
+    _summary_cache: dict[tuple[tuple[int, ...], int, str], tuple[float, float, float, float, float]] = field(default_factory=dict, init=False, repr=False)
 
     def record(self, status: str, point_values: dict[str, float]) -> None:
         for label in self.values_by_label:
             self.values_by_label[label].append(point_values.get(label, np.nan))
+        self._summary_cache.clear()
         if status == "Normal":
             self.pass_count += 1
             return
         self.fail_count += 1
 
+    def record_batch(self, statuses: np.ndarray, point_labels: tuple[str, ...], point_values: np.ndarray) -> None:
+        for point_index, label in enumerate(point_labels):
+            self.values_by_label[label].extend(point_values[:, point_index].tolist())
+        self._summary_cache.clear()
+        pass_count = int(np.count_nonzero(statuses == "Normal"))
+        self.pass_count += pass_count
+        self.fail_count += int(len(statuses) - pass_count)
+
     def summary_metrics(self, stats_indices: tuple[int, ...], total_qty: int, label: str = "1kHz") -> tuple[float, float, float, float, float]:
+        cache_key = (tuple(stats_indices), total_qty, label)
+        cached_result = self._summary_cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         values = np.array(self.values_by_label[label])[list(stats_indices)]
         values = values[~np.isnan(values)]
         if len(values) == 0:
-            return 0.0, 0.0, 0.0, 0.0, 0.0
+            result = (0.0, 0.0, 0.0, 0.0, 0.0)
+            self._summary_cache[cache_key] = result
+            return result
+
         yield_rate = (self.pass_count / total_qty) if total_qty > 0 else 0.0
-        return values.min(), values.max(), values.mean(), values.std(), yield_rate
+        result = (values.min(), values.max(), values.mean(), values.std(), yield_rate)
+        self._summary_cache[cache_key] = result
+        return result
 
 
 @dataclass(frozen=True, slots=True)
