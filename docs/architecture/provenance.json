@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "authored_on": "2026-10-07",
+  "source_repository": {
+    "url": "https://github.com/jjuck/MIC_Analysis_Tool_Dev.git",
+    "revision": "5b4fab75b127bbc0d470309e4b56a9aa95d73f38",
+    "provider": "github",
+    "link_mode": "web"
+  },
+  "generator": {
+    "name": "Archify",
+    "version": "3.0.1"
+  },
+  "specification_sha256": "a1c881a87c2942adb490c50e48316cecbc449db5f9c3ac5fe7a60963105e7697",
+  "original_html_sha256": "a9b1c2ff9343cc8ea1e7962ec33bc700dbe1ef347c6b69eda8132af9a7690ed0",
+  "published_html_sha256": "726848d48bc82335ac2430c7a2a242864d46f936ab2d53d5840b0dfecae828c5",
+  "preview_sha256": "5b4eae110795e94f3f4462bf774e6b9406fea15d48e504fbe3ca19c32850f55a",
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "visual_review": "light/dark 1440x900 captures inspected",
+  "preview": {
+    "width": 1440,
+    "height": 900,
+    "theme": "light"
+  },
+  "normalization": "Removed whitespace on blank CSS lines only; original browser evidence binds original HTML",
+  "candidate_transform": "meta.output only",
+  "snapshot": "committed-source; not live runtime/test validation",
+  "layout_advice": {}
+}

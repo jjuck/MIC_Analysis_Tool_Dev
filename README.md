@@ -22,6 +22,12 @@
 
 최근 기준으로는 **동일 제품의 여러 CSV를 한 번에 업로드해 append 처리**할 수 있고, 분석/그래프/엑셀 생성 경로도 캐시 및 지연 실행 구조로 최적화되어 대용량 시료에 더 잘 대응합니다.
 
+## 🏗️ 인터랙티브 아키텍처
+
+[![MIC Analysis Tool 아키텍처](docs/architecture/preview.png)](https://jjuck.github.io/MIC_Analysis_Tool_Dev/architecture/)
+
+이미지를 클릭하면 역할·연결·소스 근거를 탐색할 수 있습니다. 소스 커밋 [`5b4fab7`](https://github.com/jjuck/MIC_Analysis_Tool_Dev/tree/5b4fab75b127bbc0d470309e4b56a9aa95d73f38) 기준의 정적 스냅샷입니다. 로컬에서는 [HTML 파일](docs/architecture/index.html)을 브라우저로 열 수 있습니다. 설명은 한국어, 고정 Viewer UI는 영어입니다.
+
 ## ✨ 주요 기능
 
 - **자동 모델 식별**
